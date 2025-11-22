@@ -1,11 +1,42 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+
+const LensFlare = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+    <motion.div
+      animate={{
+        x: [0, 100, -50, 0],
+        y: [0, -50, 100, 0],
+        opacity: [0.1, 0.3, 0.1]
+      }}
+      transition={{ duration: 8, repeat: Infinity }}
+      className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-200 rounded-full blur-3xl"
+    />
+  </div>
+)
+
+const ApertureCard = ({ children, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
+    animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+    transition={{ duration: 0.8, delay }}
+    whileHover={{ 
+      scale: 1.05,
+      transition: { duration: 0.3 }
+    }}
+    className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-500 cursor-pointer"
+  >
+    {children}
+  </motion.div>
+)
 
 const Landing = () => {
   const navigate = useNavigate()
   const [topics, setTopics] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [focus, setFocus] = useState(1)
 
   useEffect(() => {
     const fetchTopics = async () => {
@@ -14,6 +45,12 @@ const Landing = () => {
         if (!res.ok) throw new Error('Failed to load topics')
         const data = await res.json()
         setTopics(data)
+        
+        // Gradually increase focus as content loads
+        setTimeout(() => setFocus(2), 500)
+        setTimeout(() => setFocus(3), 1000)
+        setTimeout(() => setFocus(4), 1500)
+        setTimeout(() => setFocus(5), 2000)
       } catch (err) {
         console.error(err)
         setError('Could not load topics right now.')
@@ -21,7 +58,6 @@ const Landing = () => {
         setLoading(false)
       }
     }
-
     fetchTopics()
   }, [])
 
@@ -29,105 +65,277 @@ const Landing = () => {
     navigate(`/stories/${topicId}`)
   }
 
+  const getBlurStyle = (baseBlur) => {
+    const blurAmount = Math.max(0, baseBlur - (focus * 2))
+    return `blur(${blurAmount}px)`
+  }
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+      <LensFlare />
+      
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-pink-100">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <span className="inline-flex items-center rounded-full border border-pink-200 bg-white px-3 py-1 text-sm font-semibold text-pink-600">
-              Skeptiq
-            </span>
-          </div>
-          <div className="text-sm text-gray-500">
-            Read the fine print. Look twice.
+      <motion.header 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        style={{ filter: getBlurStyle(8) }}
+        className="fixed top-0 w-full z-50 bg-black/20 backdrop-blur-lg border-b border-white/10"
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="flex items-center space-x-3"
+            >
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                <span className="text-xl">📸</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-light tracking-wider">Refocus Lens</h1>
+                <p className="text-xs text-white/60 font-light">See the full picture</p>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="text-right"
+            >
+              <div className="text-xs text-white/60 font-light tracking-wider">FOCUS</div>
+              <div className="text-sm">f/{focus}.8</div>
+            </motion.div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Hero Section */}
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <section className="text-center py-12">
-          <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mb-4">
-            See how the story changes with the source.
-          </h1>
-          <p className="text-lg text-gray-600 max-w-xl mx-auto mb-2">
-            Skeptiq lets you compare how different outlets frame the same news topic,
-            then shows you what they all quietly skip.
-          </p>
-          <p className="text-sm text-gray-500">
-            Built in 36 hours at HackWestern.
-          </p>
-        </section>
+      <main className="pt-32 pb-20">
+        <motion.section
+          initial={{ opacity: 0, scale: 1.1 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1,
+            filter: focus >= 3 ? 'blur(0px)' : 'blur(20px)'
+          }}
+          transition={{ duration: 1.5 }}
+          className="max-w-4xl mx-auto px-6 text-center mb-20"
+        >
+          <motion.h1 
+            className="text-6xl md:text-8xl font-light tracking-tight mb-8"
+            style={{ 
+              textShadow: '0 0 50px rgba(255,255,255,0.2)',
+              filter: getBlurStyle(15)
+            }}
+          >
+            REFOCUS
+          </motion.h1>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="text-xl md:text-2xl text-white/70 font-light max-w-2xl mx-auto leading-relaxed mb-12"
+            style={{ filter: getBlurStyle(8) }}
+          >
+            Adjust your lens until the story becomes clear. 
+            <span className="block mt-2 text-white/50 text-lg">
+              Multiple sources, one truth.
+            </span>
+          </motion.p>
 
-        {/* Topic List */}
-        <section className="py-8">
-          <div className="text-center mb-8">
-            <h2 className="text-sm uppercase tracking-wider text-gray-500 font-semibold">
-              Choose a topic
-            </h2>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2 }}
+            className="flex justify-center space-x-4"
+          >
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.5, 1, 0.5]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-2 h-2 bg-white rounded-full"
+            />
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.5, 1, 0.5]
+              }}
+              transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+              className="w-2 h-2 bg-white rounded-full"
+            />
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.5, 1, 0.5]
+              }}
+              transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
+              className="w-2 h-2 bg-white rounded-full"
+            />
+          </motion.div>
+        </motion.section>
+
+        {/* Topics Grid */}
+        <section className="max-w-6xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5 }}
+            className="text-center mb-16"
+          >
+            <div className="text-sm text-white/60 font-light tracking-wider mb-2">
+              SELECT FOCAL POINT
+            </div>
+            <h2 className="text-3xl font-light mb-4">Current Stories</h2>
+            <p className="text-white/60 max-w-xl mx-auto">
+              Choose a story to adjust the focus and see through different lenses
+            </p>
+          </motion.div>
 
           {loading && (
-            <p className="text-center text-sm text-gray-500">Loading topics…</p>
+            <div className="flex justify-center items-center py-20">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full"
+              />
+            </div>
           )}
 
           {error && !loading && (
-            <p className="text-center text-sm text-red-500">{error}</p>
+            <ApertureCard>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">❌</div>
+                <h3 className="text-xl font-light mb-2">Focus Error</h3>
+                <p className="text-white/60">{error}</p>
+              </div>
+            </ApertureCard>
           )}
 
           {!loading && !error && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {topics.map((topic) => (
-                <div
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1
+                  }
+                }
+              }}
+            >
+              {topics.map((topic, index) => (
+                <motion.div
                   key={topic.id}
-                  onClick={() => handleTopicClick(topic.id)}
-                  className="bg-white border border-pink-100 rounded-2xl p-5 shadow-md shadow-pink-100 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-pink-50 hover:shadow-lg hover:shadow-pink-100"
+                  variants={{
+                    hidden: { opacity: 0, y: 20, filter: 'blur(10px)' },
+                    visible: { 
+                      opacity: 1, 
+                      y: 0, 
+                      filter: 'blur(0px)',
+                      transition: { duration: 0.6 }
+                    }
+                  }}
                 >
-                  <h3 className="font-semibold text-gray-900 text-lg mb-2">
-                    {topic.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-3">
-                    {topic.sources} sources · combined view
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {topic.tags?.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex rounded-full bg-pink-50 px-2 py-0.5 text-xs text-pink-600"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                  <ApertureCard delay={index * 0.1}>
+                    <div 
+                      onClick={() => handleTopicClick(topic.id)}
+                      className="h-full"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <h3 className="text-xl font-light leading-tight pr-4 group-hover:text-blue-300 transition-colors duration-500">
+                          {topic.title}
+                        </h3>
+                        <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-light border border-white/20 shrink-0">
+                          {topic.sources || 0} LENSES
+                        </div>
+                      </div>
+                      
+                      <p className="text-white/60 text-sm mb-4 leading-relaxed font-light">
+                        Multiple perspectives available for analysis
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {topic.tags?.slice(0, 2).map((tag, tagIndex) => (
+                          <span
+                            key={tagIndex}
+                            className="px-2 py-1 bg-white/10 rounded-full text-xs font-light border border-white/20 hover:bg-white/20 transition-all duration-500"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {topic.tags?.length > 2 && (
+                          <span className="px-2 py-1 bg-white/5 rounded-full text-xs text-white/40">
+                            +{topic.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </ApertureCard>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </section>
 
-        {/* How it works strip */}
-        <section className="py-8">
-          <div className="bg-white/50 border border-pink-100 rounded-2xl p-6 max-w-2xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-              <div>
-                <div className="text-2xl mb-2">📝</div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Pick a topic</h3>
-                <p className="text-gray-500 text-xs">Choose from current events</p>
-              </div>
-              <div>
-                <div className="text-2xl mb-2">🔍</div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Compare sources</h3>
-                <p className="text-gray-500 text-xs">See different angles and tones</p>
-              </div>
-              <div>
-                <div className="text-2xl mb-2">🎯</div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">Spot the gaps</h3>
-                <p className="text-gray-500 text-xs">Discover what's missing</p>
-              </div>
+        {/* How It Works */}
+        <motion.section
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto px-6 mt-32"
+        >
+          <ApertureCard>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-light mb-6">How Refocus Works</h2>
+              <p className="text-white/60 max-w-2xl mx-auto font-light">
+                Like adjusting a camera lens, we bring different perspectives into focus to reveal the complete picture
+              </p>
             </div>
-          </div>
-        </section>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  emoji: "🎯",
+                  title: "Select Story",
+                  desc: "Choose a current event to analyze"
+                },
+                {
+                  emoji: "🔍",
+                  title: "Adjust Focus",
+                  desc: "View through different media lenses"
+                },
+                {
+                  emoji: "📊",
+                  title: "See Clearly",
+                  desc: "Understand the complete narrative"
+                }
+              ].map((item, index) => (
+                <motion.div
+                  key={index}
+                  whileHover={{ y: -5 }}
+                  className="text-center group"
+                >
+                  <motion.div 
+                    className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20 group-hover:bg-white/20 transition-all duration-500"
+                    whileHover={{ scale: 1.1 }}
+                  >
+                    <span className="text-2xl">{item.emoji}</span>
+                  </motion.div>
+                  <h3 className="font-light text-lg mb-3">{item.title}</h3>
+                  <p className="text-white/60 text-sm font-light leading-relaxed">
+                    {item.desc}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </ApertureCard>
+        </motion.section>
       </main>
     </div>
   )

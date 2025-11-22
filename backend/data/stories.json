@@ -3,61 +3,73 @@
     "id": 1,
     "title": "Gaza ceasefire talks",
     "tags": ["Politics", "Conflict", "Global"],
-    "sourcesCount": 5,
+    "sourcesCount": 0,
     "lastUpdated": "Today",
     "combinedSummary": {
       "content": "Recent ceasefire negotiations have involved multiple international mediators with varying degrees of success. The discussions focus on humanitarian pauses, prisoner exchanges, and long-term security arrangements. While temporary truces have been achieved, lasting agreements remain elusive due to fundamental disagreements on core issues and external political pressures affecting the negotiation dynamics."
     },
     "blindSpots": {
       "items": [
-        "Long-term reconstruction costs and funding sources",
+        "JUST CHECKINGLong-term reconstruction costs and funding sources",
         "Impact on civilian mental health and trauma",
         "Environmental damage from ongoing conflict",
         "Regional economic consequences beyond immediate actors"
       ]
     },
-    "sources": [
-      {
-        "id": "A",
-        "name": "Source A",
-        "tone": "Alarmist",
-        "frame": "Security",
-        "summary": "Focuses on potential security collapse and frames the ceasefire as temporary at best, emphasizing military preparedness and strategic advantages.",
-        "emoji": "😡"
-      },
-      {
-        "id": "B",
-        "name": "Source B",
-        "tone": "Neutral",
-        "frame": "Diplomatic",
-        "summary": "Presents balanced coverage of negotiation positions, highlighting international mediation efforts and procedural aspects of the talks.",
-        "emoji": "😐"
-      },
-      {
-        "id": "C",
-        "name": "Source C",
-        "tone": "Optimistic",
-        "frame": "Humanitarian",
-        "summary": "Emphasizes humanitarian aspects and civilian benefits, focusing on aid delivery and temporary relief measures achieved through negotiations.",
-        "emoji": "🙂"
-      },
-      {
-        "id": "D",
-        "name": "Source D",
-        "tone": "Skeptical",
-        "frame": "Political",
-        "summary": "Questions motives of all parties involved, analyzing political gains and losses while expressing doubt about long-term success.",
-        "emoji": "🤨"
-      },
-      {
-        "id": "E",
-        "name": "Source E",
-        "tone": "Analytical",
-        "frame": "Economic",
-        "summary": "Examines economic implications and resource allocation, focusing on costs of conflict versus potential benefits of agreement.",
-        "emoji": "📊"
-      }
-    ]
+    "sources": []
+  },
+  "2": {
+    "id": 2,
+    "title": "AI regulation debate",
+    "tags": ["Technology", "Policy"],
+    "sourcesCount": 0,
+    "lastUpdated": "Today",
+    "combinedSummary": {
+      "content": "Governments and industry leaders are debating how to regulate artificial intelligence, trying to balance innovation with concerns about safety, privacy, bias, and job disruption. Different countries are moving at different speeds, creating a patchwork of rules that will shape how AI is built and deployed."
+    },
+    "blindSpots": {
+      "items": [
+        "JUST CHECKINGImpact of AI regulation on workers in low-income countries",
+        "Environmental cost of training and running large AI models",
+        "How enforcement will actually be monitored and audited"
+      ]
+    },
+    "sources": []
+  },
+  "3": {
+    "id": 3,
+    "title": "Climate policy commitments",
+    "tags": ["Environment", "Policy", "Global"],
+    "sourcesCount": 0,
+    "lastUpdated": "Today",
+    "combinedSummary": {
+      "content": "Recent climate policy announcements focus on emission reduction targets, renewable energy investments, and transition timelines. While many governments are promising ambitious goals, there is ongoing tension between short-term economic interests and long-term climate risks."
+    },
+    "blindSpots": {
+      "items": [
+        "JUST CHECKINGHow promised funding will be distributed to the most vulnerable regions",
+        "Concrete timelines for phasing out fossil fuel subsidies",
+        "Accountability mechanisms if targets are missed"
+      ]
+    },
+    "sources": []
+  },
+  "4": {
+    "id": 4,
+    "title": "Election polling shifts",
+    "tags": ["Politics", "Elections"],
+    "sourcesCount": 0,
+    "lastUpdated": "Today",
+    "combinedSummary": {
+      "content": "Recent polling shows shifts in voter preferences as economic concerns, trust in institutions, and social issues shape the campaign narrative. Different polling firms report slightly different leads, but all point to a volatile and highly polarized electorate."
+    },
+    "blindSpots": {
+      "items": [
+        "JUST CHECKINGHow undecided voters are distributed geographically",
+        "Limitations and biases of individual polling methods",
+        "The role of non-voters and disengaged citizens in the overall picture"
+      ]
+    },
+    "sources": []
   }
 }
-
