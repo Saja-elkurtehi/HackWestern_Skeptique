@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 const LensFlare = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -251,9 +251,12 @@ const Landing = () => {
                         <h3 className="text-xl font-light leading-tight pr-4 group-hover:text-blue-300 transition-colors duration-500">
                           {topic.title}
                         </h3>
-                        <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-light border border-white/20 shrink-0">
-                          {topic.sources || 0} LENSES
-                        </div>
+                       <div className="px-3 py-1 bg-white/10 rounded-full text-xs font-light border border-white/20 shrink-0">
+                        {typeof topic.sources === 'number' && topic.sources > 0
+                          ? `${topic.sources} LENSES`
+                          : 'LIVE LENSES'}
+                      </div>
+
                       </div>
                       
                       <p className="text-white/60 text-sm mb-4 leading-relaxed font-light">
