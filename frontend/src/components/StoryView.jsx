@@ -1,0 +1,204 @@
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+
+const StoryView = () => {
+  const { id } = useParams()
+  const navigate = useNavigate()
+
+  const [story, setStory] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchStory = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const res = await fetch(`http://localhost:3000/stories/${id}`)
+        if (!res.ok) throw new Error('Failed to load story')
+        const data = await res.json()
+        setStory(data)
+      } catch (err) {
+        console.error(err)
+        setError('Could not load this story right now.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      fetchStory()
+    }
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-pink-100">
+        <p className="text-sm text-gray-600">Loading story…</p>
+      </div>
+    )
+  }
+
+  if (error || !story) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-pink-100">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-4">
+            {error || 'Story not found'}
+          </h1>
+          <button
+            onClick={() => navigate('/')}
+            className="text-pink-600 hover:underline"
+          >
+            ← Back to topics
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-pink-100">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/')}
+              className="text-pink-600 hover:underline flex items-center"
+            >
+              ← Topics
+            </button>
+            <span className="text-gray-600 text-sm">
+              Topic: <span className="font-semibold">{story.title}</span>
+            </span>
+          </div>
+          <div className="text-sm text-gray-500">
+            Sources: {story.sourcesCount || story.sources?.length || 0} • Last updated: {story.lastUpdated}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Topic Title & Chips */}
+        <section className="mb-8">
+          <h1 className="text-3xl font-semibold text-gray-900 mb-4">
+            {story.title}
+          </h1>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {story.tags?.map((tag, index) => (
+              <span
+                key={index}
+                className="inline-flex rounded-full bg-pink-50 px-3 py-1 text-sm text-pink-600"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <p className="text-gray-500 text-sm">
+            This page compares how different outlets frame this event.
+          </p>
+        </section>
+
+        {/* Main Comparison Panel */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          {/* Combined Summary */}
+          <div className="bg-white border border-pink-100 rounded-2xl p-6 shadow-md shadow-pink-100">
+            <div className="text-xs uppercase tracking-wider text-pink-600 font-semibold mb-2">
+              Combined summary
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-3">What likely happened</h3>
+            <p className="text-gray-700 leading-relaxed">
+              {story.combinedSummary?.content ||
+                'This section will summarize the event based on all available sources.'}
+            </p>
+          </div>
+
+          {/* Blind Spots */}
+          <div className="bg-white border border-pink-100 rounded-2xl p-6 shadow-md shadow-pink-100">
+            <div className="text-xs uppercase tracking-wider text-pink-600 font-semibold mb-2">
+              Blind spots
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-3">What most sources skip</h3>
+            <ul className="space-y-2 mb-4">
+              {story.blindSpots?.items?.map((item, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="text-pink-500 mr-2">•</span>
+                  <span className="text-gray-700">{item}</span>
+                </li>
+              )) || (
+                <li className="text-gray-500 text-sm">
+                  This section will highlight missing angles once AI analysis is wired in.
+                </li>
+              )}
+            </ul>
+            <p className="text-xs text-gray-500">
+              Generated by comparing all source summaries with AI.
+            </p>
+          </div>
+        </section>
+
+        {/* Sources Grid */}
+        <section className="mb-12">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              How each source frames it
+            </h2>
+            <p className="text-gray-600">
+              Tone, focus, and wording shift from outlet to outlet.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {story.sources?.map((source) => (
+              <div
+                key={source.id}
+                className="bg-white border border-pink-100 rounded-2xl p-5 shadow-md shadow-pink-100 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    {source.name}
+                  </h3>
+                  <span className="text-xl">
+                    {source.emoji || '📰'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="inline-flex rounded-full bg-pink-50 px-2 py-1 text-xs text-pink-700">
+                    Tone: {source.tone || 'Unknown'}
+                  </span>
+                  <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                    Frame: {source.frame || 'Unknown'}
+                  </span>
+                </div>
+
+                <p className="text-gray-700 text-sm leading-relaxed mb-3">
+                  {source.summary}
+                </p>
+
+                {source.url && (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-pink-600 hover:underline"
+                  >
+                    Read original article →
+                  </a>
+                )}
+
+                <p className="text-xs text-gray-500 mt-2">
+                  Source information provided via live news APIs.
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+export default StoryView
