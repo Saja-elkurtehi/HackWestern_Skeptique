@@ -289,9 +289,33 @@ const StoryView = ({ darkMode, setDarkMode }) => {
   // 1 = very blurry title, 5 = sharp
   const [focusLevel, setFocusLevel] = useState(5)
 
+  // "Unspoken truth / composite focus" interpretation mode
+  const [interpretationMode, setInterpretationMode] = useState('default')
+
   const getTitleBlur = () => {
     const blurAmount = Math.max(0, 20 - focusLevel * 4) // 1→16px, 5→0px
     return `blur(${blurAmount}px)`
+  }
+
+  // Helper: pick the right combined summary text based on dropdown
+  const getCombinedSummaryText = () => {
+    const combined = story?.combinedSummary || {}
+
+    switch (interpretationMode) {
+      case 'eli5':
+        return combined.eli5 || combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+      case 'oneSentence':
+        return combined.oneSentence || combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+      case 'dataOnly':
+        return combined.dataOnly || combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+      case 'political':
+        return combined.politicalAngle || combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+      case 'humanitarian':
+        return combined.humanitarianAngle || combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+      case 'default':
+      default:
+        return combined.content || 'Multiple lenses combined to reveal the clearest possible version of events.'
+    }
   }
 
   useEffect(() => {
@@ -464,21 +488,41 @@ const StoryView = ({ darkMode, setDarkMode }) => {
               whileHover={{ scale: 1.02 }}
               className="bg-slate-900/70 backdrop-blur-xl rounded-2xl border border-slate-700 p-8 hover:border-blue-400/70 transition-all duration-400"
             >
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mr-4 border border-blue-400/50">
-                  <span className="text-2xl">🔍</span>
-                </div>
-                <div>
-                  <div className="text-xs text-blue-300 font-light tracking-wider mb-1">
-                    WIDE ANGLE SUMMARY
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mr-4 border border-blue-400/50">
+                    <span className="text-2xl">🔍</span>
                   </div>
-                  <h2 className="text-2xl font-light">Composite Focus</h2>
+                  <div>
+                    <div className="text-xs text-blue-300 font-light tracking-wider mb-1">
+                      WIDE ANGLE SUMMARY
+                    </div>
+                    <h2 className="text-2xl font-light">Composite Focus</h2>
+                  </div>
+                </div>
+
+                {/* Unspoken truth / composite focus dropdown */}
+                <div className="flex flex-col items-end gap-1 text-xs">
+                  <span className="text-slate-400 uppercase tracking-widest">
+                    UNSEEN FILTER
+                  </span>
+                  <select
+                    value={interpretationMode}
+                    onChange={(e) => setInterpretationMode(e.target.value)}
+                    className="bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="default">Default composite truth</option>
+                    <option value="eli5">Explain it like I’m 5</option>
+                    <option value="oneSentence">Summarize in one sentence</option>
+                    <option value="dataOnly">Give me only the data</option>
+                    <option value="political">Give me the political angle</option>
+                    <option value="humanitarian">Give me the humanitarian angle</option>
+                  </select>
                 </div>
               </div>
 
               <p className="text-slate-100 leading-relaxed text-base md:text-lg font-light">
-                {story.combinedSummary?.content ||
-                  'Multiple lenses combined to reveal the clearest possible version of events.'}
+                {getCombinedSummaryText()}
               </p>
             </motion.div>
           </motion.section>
@@ -705,21 +749,41 @@ const StoryView = ({ darkMode, setDarkMode }) => {
             whileHover={{ scale: 1.02 }}
             className="bg-white rounded-2xl border-2 border-amber-200 p-8 shadow-lg hover:shadow-xl transition-all duration-300"
           >
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center mr-4 border-2 border-amber-400">
-                <span className="text-2xl">🔍</span>
-              </div>
-              <div>
-                <div className="text-xs text-amber-600 font-black tracking-wider mb-1">
-                  REALITY CHECK
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <div className="flex items-center">
+                <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center mr-4 border-2 border-amber-400">
+                  <span className="text-2xl">🔍</span>
                 </div>
-                <h2 className="text-2xl font-black">The Unspun Truth</h2>
+                <div>
+                  <div className="text-xs text-amber-600 font-black tracking-wider mb-1">
+                    REALITY CHECK
+                  </div>
+                  <h2 className="text-2xl font-black">The Unspun Truth</h2>
+                </div>
+              </div>
+
+              {/* Unspoken truth dropdown */}
+              <div className="flex flex-col items-end gap-1 text-xs">
+                <span className="text-gray-500 uppercase tracking-widest">
+                  UNPICK THE SPIN
+                </span>
+                <select
+                  value={interpretationMode}
+                  onChange={(e) => setInterpretationMode(e.target.value)}
+                  className="bg-white border-2 border-amber-200 rounded-lg px-3 py-2 text-[11px] text-gray-800 font-black focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="default">Default reality check</option>
+                  <option value="eli5">Explain it like I’m 5</option>
+                  <option value="oneSentence">Summarize in one sentence</option>
+                  <option value="dataOnly">Give me only the data</option>
+                  <option value="political">Give me the political angle</option>
+                  <option value="humanitarian">Give me the humanitarian angle</option>
+                </select>
               </div>
             </div>
 
             <p className="text-gray-700 leading-relaxed text-base md:text-lg">
-              {story.combinedSummary?.content ||
-                "When you strip away the spin, here's what actually happened. Probably."}
+              {getCombinedSummaryText()}
             </p>
           </motion.div>
         </motion.section>

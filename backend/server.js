@@ -154,6 +154,7 @@ ${articlesText}
 
 /* -------------------------------------------------------
    3) Combined summary + blind spots for StoryView
+      (now with multiple "modes" for your dropdown)
    ------------------------------------------------------- */
 async function generateSummaryAndBlindSpots(topic, sources) {
   const articlesText = sources
@@ -167,9 +168,24 @@ async function generateSummaryAndBlindSpots(topic, sources) {
 Analyze the articles for "${topic}" and return ONLY JSON:
 
 {
-  "combinedSummary": "string",
+  "combinedSummary": {
+    "content": "A neutral, well-rounded paragraph combining the key facts from all sources.",
+    "eli5": "Explain the situation in very simple language for a 5-year-old.",
+    "oneSentence": "Boil the core of the story down into ONE concise sentence.",
+    "dataOnly": "Describe only the concrete facts, numbers, dates, and verifiable info. No adjectives or opinions.",
+    "politicalAngle": "Explain how this story intersects with politics, power, governments, parties, laws, or elections.",
+    "humanitarianAngle": "Explain the story from the perspective of human impact: civilians, casualties, displacement, rights, everyday lives."
+  },
   "blindSpots": ["string1","string2","string3"]
 }
+
+Rules:
+- "content" should be 2–4 sentences, neutral and balanced.
+- "eli5" should be simple, informal, and short (2–3 sentences).
+- "oneSentence" must be exactly one sentence.
+- "dataOnly" should feel like a bullet-point list written as a paragraph: facts only.
+- "politicalAngle" and "humanitarianAngle" should each be 2–4 sentences.
+- Do NOT include any extra keys or commentary outside this JSON.
 
 Articles:
 ${articlesText}
@@ -309,7 +325,6 @@ app.get("/stories", async (req, res) => {
   }
 });
 
-
 app.get("/stories/:id", async (req, res) => {
   const { id } = req.params;
   const localStory = localStories[id];
@@ -338,17 +353,31 @@ app.get("/stories/:id", async (req, res) => {
   // 2) Add tone/frame labels
   liveArticles = await annotateSourcesWithToneAndFrame(topic, liveArticles);
 
-  // 3) Generate combined summary + blind spots
+  // 3) Generate combined summary + blind spots (with multiple modes)
   const ai = await generateSummaryAndBlindSpots(topic, liveArticles);
+
+  // Safely normalize combined summary structure
+  let combinedSummaryRaw = ai?.combinedSummary;
+
+  if (combinedSummaryRaw && typeof combinedSummaryRaw === "string") {
+    combinedSummaryRaw = { content: combinedSummaryRaw };
+  }
+
+  const combinedSummary = {
+    content: combinedSummaryRaw?.content || "Not available",
+    eli5: combinedSummaryRaw?.eli5 || null,
+    oneSentence: combinedSummaryRaw?.oneSentence || null,
+    dataOnly: combinedSummaryRaw?.dataOnly || null,
+    politicalAngle: combinedSummaryRaw?.politicalAngle || null,
+    humanitarianAngle: combinedSummaryRaw?.humanitarianAngle || null,
+  };
 
   const result = {
     ...localStory,
     sourcesCount: liveArticles.length,
     sources: liveArticles,
     lastUpdated: "Just now",
-    combinedSummary: {
-      content: ai?.combinedSummary || "Not available",
-    },
+    combinedSummary,
     blindSpots: {
       items: ai?.blindSpots || [],
     },
@@ -362,6 +391,7 @@ app.get("/stories/:id", async (req, res) => {
 
   return res.json(result);
 });
+
 
 /* -------------------------------------------------------
    START SERVER
