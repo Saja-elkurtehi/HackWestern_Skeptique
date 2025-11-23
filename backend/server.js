@@ -50,7 +50,7 @@ async function callGemini(prompt) {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
           "HTTP-Referer": "http://localhost:5173",
-          "X-Title": "Skeptiq",
+          "X-Title": "Skeptique",
         },
       }
     );
@@ -276,7 +276,7 @@ ${listText}
    Root - sanity check
    ------------------------------------------------------- */
 app.get("/", (req, res) => {
-  res.json({ message: "Skeptiq backend running" });
+  res.json({ message: "Skeptique backend running" });
 });
 
 /* -------------------------------------------------------
@@ -397,5 +397,5 @@ app.get("/stories/:id", async (req, res) => {
    START SERVER
    ------------------------------------------------------- */
 app.listen(PORT, () => {
-  console.log(`Skeptiq backend running at http://localhost:${PORT}`);
+  console.log(`Skeptique backend running at http://localhost:${PORT}`);
 });
