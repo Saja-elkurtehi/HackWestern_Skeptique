@@ -16,8 +16,21 @@ app.use(cors());
 app.use(express.json());
 
 /* -------------------------------------------------------
-   Helper: call Gemini via OpenRouter
-------------------------------------------------------- */
+   SIMPLE IN-MEMORY CACHES
+   ------------------------------------------------------- */
+const UMBRELLA_TTL = 1000 * 60 * 60 * 6; // 6 hours
+const STORY_TTL = 1000 * 60 * 30;        // 30 minutes
+
+let umbrellaCache = {
+  data: null,
+  timestamp: 0,
+};
+
+const storyCache = new Map(); // key: storyId -> { data, timestamp }
+
+/* -------------------------------------------------------
+    Gemini API call helper
+    ------------------------------------------------------- */
 async function callGemini(prompt) {
   if (!OPENROUTER_API_KEY) {
     console.warn("Missing OPENROUTER_API_KEY");
@@ -59,7 +72,7 @@ async function callGemini(prompt) {
 
 /* -------------------------------------------------------
    1) Fetch full articles for StoryView (per topic)
-------------------------------------------------------- */
+   ------------------------------------------------------- */
 async function fetchArticlesForTopic(topic) {
   if (!NEWS_API_KEY) return null;
 
@@ -94,7 +107,7 @@ async function fetchArticlesForTopic(topic) {
 
 /* -------------------------------------------------------
    2) Tone + Frame classification for StoryView
-------------------------------------------------------- */
+   ------------------------------------------------------- */
 async function annotateSourcesWithToneAndFrame(topic, sources) {
   const articlesText = sources
     .map(
@@ -141,7 +154,7 @@ ${articlesText}
 
 /* -------------------------------------------------------
    3) Combined summary + blind spots for StoryView
-------------------------------------------------------- */
+   ------------------------------------------------------- */
 async function generateSummaryAndBlindSpots(topic, sources) {
   const articlesText = sources
     .map(
@@ -176,8 +189,16 @@ ${articlesText}
 
 /* -------------------------------------------------------
    4) Generate UMBRELLA topics for Landing from localStories
-------------------------------------------------------- */
+      (with caching)
+   ------------------------------------------------------- */
 async function generateUmbrellaTopicsFromLocalStories() {
+  const now = Date.now();
+
+  // ✅ Use cached umbrellas if still fresh
+  if (umbrellaCache.data && now - umbrellaCache.timestamp < UMBRELLA_TTL) {
+    return umbrellaCache.data;
+  }
+
   const storiesArray = Object.values(localStories);
 
   const listText = storiesArray
@@ -221,6 +242,13 @@ ${listText}
       console.error("Umbrella topics JSON is not an array:", parsed);
       return null;
     }
+
+    // 💾 Store in cache
+    umbrellaCache = {
+      data: parsed,
+      timestamp: now,
+    };
+
     return parsed;
   } catch (err) {
     console.error("Umbrella topics JSON parse error:", result);
@@ -230,47 +258,36 @@ ${listText}
 
 /* -------------------------------------------------------
    Root - sanity check
-------------------------------------------------------- */
+   ------------------------------------------------------- */
 app.get("/", (req, res) => {
   res.json({ message: "Skeptiq backend running" });
 });
 
 /* -------------------------------------------------------
    LANDING PAGE: /stories → umbrella topics (2–4 words)
-------------------------------------------------------- */
+   Fast + cheap: NO NewsAPI calls here.
+   ------------------------------------------------------- */
 app.get("/stories", async (req, res) => {
   try {
     const storiesArray = Object.values(localStories);
 
-    // 1) Generate umbrella topics from localStories titles (as before)
+    // 1) Get (cached) umbrella topics
     const umbrellas = await generateUmbrellaTopicsFromLocalStories();
-
-    // 2) For each story, fetch articles once to estimate lens count
-    const lensCounts = await Promise.all(
-      storiesArray.map(async (s) => {
-        try {
-          const articles = await fetchArticlesForTopic(s.title);
-          return articles ? articles.length : 0;
-        } catch (err) {
-          console.error("Error counting lenses for", s.title, err.message);
-          return 0;
-        }
-      })
-    );
-
-    // If Gemini failed, just use local titles
     const umbrellaMap = new Map(
       (umbrellas || []).map((u) => [String(u.id), u])
     );
 
-    const response = storiesArray.map((s, index) => {
+    // 2) Build response WITHOUT hitting NewsAPI
+    const response = storiesArray.map((s) => {
       const u = umbrellaMap.get(String(s.id));
 
       return {
         id: s.id,
-        title: u?.title || s.title,                          // umbrella topic
-        tags: Array.isArray(u?.tags) ? u.tags : s.tags,      // tags from Gemini or fallback
-        sources: lensCounts[index] ?? s.sourcesCount ?? 0,   // REAL lens count
+        // umbrella topic from Gemini, fallback to local title
+        title: u?.title || s.title,
+        tags: Array.isArray(u?.tags) ? u.tags : s.tags,
+        // use local sourcesCount or 0 — we don't burn API calls here
+        sources: s.sourcesCount ?? 0,
         lastUpdated: u ? "Live" : s.lastUpdated,
       };
     });
@@ -279,13 +296,13 @@ app.get("/stories", async (req, res) => {
   } catch (err) {
     console.error("/stories umbrella error:", err.message);
 
-    // Final safety fallback
+    // Final safety fallback (pure local JSON)
     res.json(
       Object.values(localStories).map((s) => ({
         id: s.id,
         title: s.title,
         tags: s.tags,
-        sources: s.sourcesCount,
+        sources: s.sourcesCount ?? 0,
         lastUpdated: s.lastUpdated,
       }))
     );
@@ -293,12 +310,21 @@ app.get("/stories", async (req, res) => {
 });
 
 
-/* -------------------------------------------------------
-   STORYVIEW PAGE: /stories/:id  (unchanged behaviour)
-------------------------------------------------------- */
 app.get("/stories/:id", async (req, res) => {
-  const localStory = localStories[req.params.id];
-  if (!localStory) return res.status(404).json({ error: "Story not found" });
+  const { id } = req.params;
+  const localStory = localStories[id];
+
+  if (!localStory) {
+    return res.status(404).json({ error: "Story not found" });
+  }
+
+  const now = Date.now();
+
+  // ✅ Check in-memory cache first
+  const cached = storyCache.get(id);
+  if (cached && now - cached.timestamp < STORY_TTL) {
+    return res.json(cached.data);
+  }
 
   const topic = localStory.title;
 
@@ -315,7 +341,7 @@ app.get("/stories/:id", async (req, res) => {
   // 3) Generate combined summary + blind spots
   const ai = await generateSummaryAndBlindSpots(topic, liveArticles);
 
-  return res.json({
+  const result = {
     ...localStory,
     sourcesCount: liveArticles.length,
     sources: liveArticles,
@@ -326,12 +352,20 @@ app.get("/stories/:id", async (req, res) => {
     blindSpots: {
       items: ai?.blindSpots || [],
     },
+  };
+
+  // 💾 Cache the full story for STORY_TTL
+  storyCache.set(id, {
+    data: result,
+    timestamp: now,
   });
+
+  return res.json(result);
 });
 
 /* -------------------------------------------------------
    START SERVER
-------------------------------------------------------- */
+   ------------------------------------------------------- */
 app.listen(PORT, () => {
   console.log(`Skeptiq backend running at http://localhost:${PORT}`);
 });

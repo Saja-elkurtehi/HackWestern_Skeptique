@@ -14,6 +14,7 @@ export default {
           50: '#fdf2f8',
           100: '#fce7f3',
         },
+        dark: '#14396aff',
       },
     },
   },

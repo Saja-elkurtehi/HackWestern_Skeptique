@@ -1,73 +1,75 @@
 {
   "1": {
     "id": 1,
-    "title": "Gaza ceasefire talks",
-    "tags": ["Politics", "Conflict", "Global"],
+    "title": "Global Technology Policy",
+    "tags": ["Technology", "Innovation", "Regulation"],
     "sourcesCount": 0,
     "lastUpdated": "Today",
     "combinedSummary": {
-      "content": "Recent ceasefire negotiations have involved multiple international mediators with varying degrees of success. The discussions focus on humanitarian pauses, prisoner exchanges, and long-term security arrangements. While temporary truces have been achieved, lasting agreements remain elusive due to fundamental disagreements on core issues and external political pressures affecting the negotiation dynamics."
+      "content": "Major technology companies and regulatory bodies are evaluating new standards for data protection, AI deployment, cybersecurity resilience, and digital market competition. Discussions emphasize balancing innovation with user safety while ensuring fair practices across industries."
     },
     "blindSpots": {
       "items": [
-        "JUST CHECKINGLong-term reconstruction costs and funding sources",
-        "Impact on civilian mental health and trauma",
-        "Environmental damage from ongoing conflict",
-        "Regional economic consequences beyond immediate actors"
+        "Long-term effects of algorithmic regulation on small developers",
+        "Environmental cost of large-scale data centers",
+        "Transparency around cross-border data sharing agreements"
       ]
     },
     "sources": []
   },
+
   "2": {
     "id": 2,
-    "title": "AI regulation debate",
-    "tags": ["Technology", "Policy"],
+    "title": "Public Health Research",
+    "tags": ["Health", "Science", "Wellness"],
     "sourcesCount": 0,
     "lastUpdated": "Today",
     "combinedSummary": {
-      "content": "Governments and industry leaders are debating how to regulate artificial intelligence, trying to balance innovation with concerns about safety, privacy, bias, and job disruption. Different countries are moving at different speeds, creating a patchwork of rules that will shape how AI is built and deployed."
+      "content": "Researchers are examining trends in disease prevention, early diagnostics, and new treatment technologies. Advances in wearable devices, nutrition studies, and mental health initiatives are contributing to ongoing efforts to improve population well-being."
     },
     "blindSpots": {
       "items": [
-        "JUST CHECKINGImpact of AI regulation on workers in low-income countries",
-        "Environmental cost of training and running large AI models",
-        "How enforcement will actually be monitored and audited"
+        "Impact of rising healthcare costs on early detection programs",
+        "Gaps in research participation across different communities",
+        "Long-term effects of emerging digital health tools"
       ]
     },
     "sources": []
   },
+
   "3": {
     "id": 3,
-    "title": "Climate policy commitments",
-    "tags": ["Environment", "Policy", "Global"],
+    "title": "Environmental Sustainability",
+    "tags": ["Environment", "Sustainability", "Science"],
     "sourcesCount": 0,
     "lastUpdated": "Today",
     "combinedSummary": {
-      "content": "Recent climate policy announcements focus on emission reduction targets, renewable energy investments, and transition timelines. While many governments are promising ambitious goals, there is ongoing tension between short-term economic interests and long-term climate risks."
+      "content": "New sustainability initiatives focus on reducing emissions, improving waste management, and expanding renewable energy adoption. Researchers highlight the importance of ecosystem restoration and long-term planning to address rising environmental pressures."
     },
     "blindSpots": {
       "items": [
-        "JUST CHECKINGHow promised funding will be distributed to the most vulnerable regions",
-        "Concrete timelines for phasing out fossil fuel subsidies",
-        "Accountability mechanisms if targets are missed"
+        "Potential financial barriers to large-scale renewable transitions",
+        "Limited discussion on biodiversity loss outside protected regions",
+        "Long-term monitoring gaps in environmental restoration projects"
       ]
     },
     "sources": []
   },
+
   "4": {
     "id": 4,
-    "title": "Election polling shifts",
-    "tags": ["Politics", "Elections"],
+    "title": "Consumer Safety & Standards",
+    "tags": ["Business", "Safety", "Regulation"],
     "sourcesCount": 0,
     "lastUpdated": "Today",
     "combinedSummary": {
-      "content": "Recent polling shows shifts in voter preferences as economic concerns, trust in institutions, and social issues shape the campaign narrative. Different polling firms report slightly different leads, but all point to a volatile and highly polarized electorate."
+      "content": "Consumer protection agencies are revisiting safety standards for products ranging from household electronics to food packaging. The goal is to enhance transparency, ensure durability, and improve labeling practices that help consumers make informed choices."
     },
     "blindSpots": {
       "items": [
-        "JUST CHECKINGHow undecided voters are distributed geographically",
-        "Limitations and biases of individual polling methods",
-        "The role of non-voters and disengaged citizens in the overall picture"
+        "Limited clarity around enforcement of new labeling rules",
+        "Potential for hidden manufacturing costs affecting product quality",
+        "Gaps in testing standards for emerging smart devices"
       ]
     },
     "sources": []
