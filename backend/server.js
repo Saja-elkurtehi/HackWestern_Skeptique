@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const dotenv = require("dotenv");
-const localStories = require("./data/stories.json");
+const crypto = require("crypto");
 
 dotenv.config();
 
@@ -15,35 +15,27 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 app.use(cors());
 app.use(express.json());
 
-/* -------------------------------------------------------
-   SIMPLE IN-MEMORY CACHES
-   ------------------------------------------------------- */
-const UMBRELLA_TTL = 1000 * 60 * 60 * 6; // 6 hours
-const STORY_TTL = 1000 * 60 * 30;        // 30 minutes
-
-let umbrellaCache = {
-  data: null,
-  timestamp: 0,
-};
-
-const storyCache = new Map(); // key: storyId -> { data, timestamp }
+const localStories = require("./data/stories.json");
 
 /* -------------------------------------------------------
-    Gemini API call helper
-    ------------------------------------------------------- */
-async function callGemini(prompt) {
-  if (!OPENROUTER_API_KEY) {
-    console.warn("Missing OPENROUTER_API_KEY");
-    return null;
-  }
+   CACHING
+------------------------------------------------------- */
+const STORY_TTL = 1000 * 60 * 30; // 30 min
+const storyCache = new Map(); // hash -> { data, timestamp }
+
+/* -------------------------------------------------------
+   AI CALL (Gemini via OpenRouter)
+------------------------------------------------------- */
+async function callGemini(prompt, temperature = 0.2) {
+  if (!OPENROUTER_API_KEY) return null;
 
   try {
-    const response = await axios.post(
+    const res = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         model: "google/gemini-2.5-pro",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
+        temperature,
       },
       {
         headers: {
@@ -55,15 +47,12 @@ async function callGemini(prompt) {
       }
     );
 
-    let msg = response.data.choices?.[0]?.message?.content;
+    const msg = res.data.choices?.[0]?.message?.content;
     if (!msg) return null;
 
-    if (typeof msg === "string") return msg.trim();
-    if (Array.isArray(msg)) {
-      return msg.map((p) => p.text || "").join(" ").trim();
-    }
-
-    return String(msg).trim();
+    return typeof msg === "string"
+      ? msg.trim()
+      : msg.map((p) => p.text).join(" ").trim();
   } catch (err) {
     console.error("Gemini Error:", err.response?.data || err.message);
     return null;
@@ -71,331 +60,278 @@ async function callGemini(prompt) {
 }
 
 /* -------------------------------------------------------
-   1) Fetch full articles for StoryView (per topic)
-   ------------------------------------------------------- */
-async function fetchArticlesForTopic(topic) {
-  if (!NEWS_API_KEY) return null;
+   NEWS FETCH
+------------------------------------------------------- */
+async function fetchArticles(topic) {
+  if (!NEWS_API_KEY) return [];
 
-  try {
-    const res = await axios.get("https://newsapi.org/v2/everything", {
-      params: {
-        q: topic,
-        language: "en",
-        sortBy: "relevancy",
-        pageSize: 8,
-        apiKey: NEWS_API_KEY,
-      },
-    });
+  const res = await axios.get("https://newsapi.org/v2/everything", {
+    params: {
+      q: topic,
+      language: "en",
+      sortBy: "relevancy",
+      pageSize: 8,
+      apiKey: NEWS_API_KEY,
+    },
+  });
 
-    const articles = res.data.articles || [];
-
-    return articles.map((a, i) => ({
-      id: `newsapi-${i}`,
-      name: a.source?.name || "Unknown",
-      title: a.title || "Untitled",
-      summary: a.description || a.content || "No summary available.",
-      tone: "Unknown",
-      frame: "Unknown",
-      url: a.url,
-      imageUrl: a.urlToImage || null,
-    }));
-  } catch (err) {
-    console.error("NewsAPI Error:", err.message);
-    return null;
-  }
+  return (res.data.articles || []).map((a, i) => ({
+    id: `newsapi-${i}`,
+    source: a.source?.name || "Unknown",
+    title: a.title || "Untitled",
+    summary: a.description || a.content || "",
+    url: a.url,
+    imageUrl: a.urlToImage || null,
+  }));
 }
 
 /* -------------------------------------------------------
-   2) Tone + Frame classification for StoryView
-   ------------------------------------------------------- */
-async function annotateSourcesWithToneAndFrame(topic, sources) {
-  const articlesText = sources
-    .map(
-      (s) =>
-        `ID: ${s.id}\nSource: ${s.name}\nTitle: ${s.title}\nSummary: ${s.summary}`
-    )
-    .join("\n\n");
+   CHEAP HEURISTIC TONE + FRAME
+------------------------------------------------------- */
+function inferTone(summary) {
+  const s = summary.toLowerCase();
+  if (/(crisis|threat|danger|urgent|collapse)/.test(s)) return "Alarmist";
+  if (/(breakthrough|progress|improve|success)/.test(s)) return "Optimistic";
+  if (/(study|analysis|report|data)/.test(s)) return "Analytical";
+  return "Neutral";
+}
 
-  const prompt = `
-Label each article about "${topic}" with a tone and frame.
-
-Tone: "Alarmist", "Neutral", "Optimistic", "Skeptical", "Analytical"
-Frame: "Security","Humanitarian","Economic","Political","Diplomatic","Other"
-
-Return ONLY JSON:
-
-[
-  {"id":"newsapi-0","tone":"Neutral","frame":"Diplomatic"},
-  {"id":"newsapi-1","tone":"Alarmist","frame":"Security"}
-]
-
-Articles:
-${articlesText}
-`;
-
-  let result = await callGemini(prompt);
-  if (!result) return sources;
-
-  result = result.replace(/```json/gi, "").replace(/```/g, "").trim();
-
-  try {
-    const parsed = JSON.parse(result);
-    const map = new Map(parsed.map((p) => [p.id, p]));
-
-    return sources.map((s) => ({
-      ...s,
-      tone: map.get(s.id)?.tone || "Unknown",
-      frame: map.get(s.id)?.frame || "Unknown",
-    }));
-  } catch {
-    return sources;
-  }
+function inferFrame(summary) {
+  const s = summary.toLowerCase();
+  if (/(law|regulation|policy|government|election)/.test(s)) return "Political";
+  if (/(economy|market|cost|industry|business)/.test(s)) return "Economic";
+  if (/(health|civilian|rights|community)/.test(s)) return "Humanitarian";
+  if (/(security|defense|cyber|attack)/.test(s)) return "Security";
+  return "Other";
 }
 
 /* -------------------------------------------------------
-   3) Combined summary + blind spots for StoryView
-      (now with multiple "modes" for your dropdown)
-   ------------------------------------------------------- */
-async function generateSummaryAndBlindSpots(topic, sources) {
-  const articlesText = sources
-    .map(
-      (s, i) =>
-        `Article ${i + 1}:\nSource: ${s.name}\nTitle: ${s.title}\nSummary: ${s.summary}`
-    )
-    .join("\n\n");
-
-  const prompt = `
-Analyze the articles for "${topic}" and return ONLY JSON:
-
-{
-  "combinedSummary": {
-    "content": "A neutral, well-rounded paragraph combining the key facts from all sources.",
-    "eli5": "Explain the situation in very simple language for a 5-year-old.",
-    "oneSentence": "Boil the core of the story down into ONE concise sentence.",
-    "dataOnly": "Describe only the concrete facts, numbers, dates, and verifiable info. No adjectives or opinions.",
-    "politicalAngle": "Explain how this story intersects with politics, power, governments, parties, laws, or elections.",
-    "humanitarianAngle": "Explain the story from the perspective of human impact: civilians, casualties, displacement, rights, everyday lives."
-  },
-  "blindSpots": ["string1","string2","string3"]
-}
-
-Rules:
-- "content" should be 2–4 sentences, neutral and balanced.
-- "eli5" should be simple, informal, and short (2–3 sentences).
-- "oneSentence" must be exactly one sentence.
-- "dataOnly" should feel like a bullet-point list written as a paragraph: facts only.
-- "politicalAngle" and "humanitarianAngle" should each be 2–4 sentences.
-- Do NOT include any extra keys or commentary outside this JSON.
-
-Articles:
-${articlesText}
-`;
-
-  let result = await callGemini(prompt);
-  if (!result) return null;
-
-  result = result.replace(/```json/gi, "").replace(/```/g, "").trim();
-
-  try {
-    return JSON.parse(result);
-  } catch {
-    return null;
-  }
+   SEMANTIC HASH (for caching)
+------------------------------------------------------- */
+function articleHash(articles) {
+  return crypto
+    .createHash("sha1")
+    .update(articles.map((a) => a.title + a.source).join("|"))
+    .digest("hex");
 }
 
 /* -------------------------------------------------------
-   4) Generate UMBRELLA topics for Landing from localStories
-      (with caching)
-   ------------------------------------------------------- */
-async function generateUmbrellaTopicsFromLocalStories() {
-  const now = Date.now();
+   SINGLE AI CALL: summary + blind spots + fallback tone/frame
+------------------------------------------------------- */
+  async function aiSynthesize(topic, articles) {
+    const text = articles
+      .map(
+        (a, i) =>
+          `Article ${i + 1} (${a.source}): ${a.title}\n${a.summary || "No summary"}`
+      )
+      .join("\n\n");
 
-  // ✅ Use cached umbrellas if still fresh
-  if (umbrellaCache.data && now - umbrellaCache.timestamp < UMBRELLA_TTL) {
-    return umbrellaCache.data;
+    const prompt = `
+  You are a media analyst.
+
+  Analyze reporting on "${topic}".
+
+  Return STRICT JSON ONLY. No commentary. No markdown.
+
+  Schema:
+  {
+    "summary": {
+      "content": "2–4 neutral sentences",
+      "oneSentence": "Exactly one sentence"
+    },
+    "blindSpots": ["item 1","item 2","item 3"],
+    "labels": [
+      {"id":"newsapi-0","tone":"Neutral","frame":"Political"}
+    ]
   }
 
-  const storiesArray = Object.values(localStories);
+  Articles:
+  ${text}
+  `;
 
-  const listText = storiesArray
-    .map((s) => `ID: ${s.id}, title: "${s.title}"`)
-    .join("\n");
+    const raw = await callGemini(prompt, 0.2);
 
-  const prompt = `
-You are helping a media-bias comparison app.
-
-For each of these specific news stories, create:
-- A broader umbrella topic (2–4 words ONLY)
-- 2–3 short tags
-
-The umbrella should be higher-level than the story.
-Examples:
-- "Gaza ceasefire talks" → "Middle East conflict"
-- "AI regulation debate" → "Global AI governance"
-- "Election polling shifts" → "Election dynamics"
-
-Return ONLY JSON array like:
-
-[
-  {"id": 1, "title": "Middle East conflict", "tags": ["Politics","Conflict","Region"]},
-  {"id": 2, "title": "Global AI governance", "tags": ["Technology","Policy"]},
-  {"id": 3, "title": "Climate policy", "tags": ["Environment","Policy"]},
-  {"id": 4, "title": "Election dynamics", "tags": ["Politics","Elections"]}
-]
-
-Stories:
-${listText}
-`;
-
-  let result = await callGemini(prompt);
-  if (!result) return null;
-
-  result = result.replace(/```json/gi, "").replace(/```/g, "").trim();
-
-  try {
-    const parsed = JSON.parse(result);
-    if (!Array.isArray(parsed)) {
-      console.error("Umbrella topics JSON is not an array:", parsed);
+    if (!raw) {
+      console.warn("AI returned nothing");
       return null;
     }
 
-    // 💾 Store in cache
-    umbrellaCache = {
-      data: parsed,
-      timestamp: now,
-    };
+    console.log("🧠 RAW AI OUTPUT:\n", raw);
 
-    return parsed;
-  } catch (err) {
-    console.error("Umbrella topics JSON parse error:", result);
-    return null;
+    // 🔒 Defensive JSON extraction
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) {
+      console.warn("No JSON object found in AI output");
+      return null;
+    }
+
+    try {
+      return JSON.parse(match[0]);
+    } catch (err) {
+      console.error("AI JSON parse failed:", err.message);
+      return null;
+    }
   }
-}
+
 
 /* -------------------------------------------------------
-   Root - sanity check
-   ------------------------------------------------------- */
-app.get("/", (req, res) => {
+   ROUTES
+------------------------------------------------------- */
+
+app.get("/", (_, res) => {
   res.json({ message: "Skeptique backend running" });
 });
 
-/* -------------------------------------------------------
-   LANDING PAGE: /stories → umbrella topics (2–4 words)
-   Fast + cheap: NO NewsAPI calls here.
-   ------------------------------------------------------- */
-app.get("/stories", async (req, res) => {
-  try {
-    const storiesArray = Object.values(localStories);
-
-    // 1) Get (cached) umbrella topics
-    const umbrellas = await generateUmbrellaTopicsFromLocalStories();
-    const umbrellaMap = new Map(
-      (umbrellas || []).map((u) => [String(u.id), u])
-    );
-
-    // 2) Build response WITHOUT hitting NewsAPI
-    const response = storiesArray.map((s) => {
-      const u = umbrellaMap.get(String(s.id));
-
-      return {
-        id: s.id,
-        // umbrella topic from Gemini, fallback to local title
-        title: u?.title || s.title,
-        tags: Array.isArray(u?.tags) ? u.tags : s.tags,
-        // use local sourcesCount or 0 — we don't burn API calls here
-        sources: s.sourcesCount ?? 0,
-        lastUpdated: u ? "Live" : s.lastUpdated,
-      };
-    });
-
-    res.json(response);
-  } catch (err) {
-    console.error("/stories umbrella error:", err.message);
-
-    // Final safety fallback (pure local JSON)
-    res.json(
-      Object.values(localStories).map((s) => ({
-        id: s.id,
-        title: s.title,
-        tags: s.tags,
-        sources: s.sourcesCount ?? 0,
-        lastUpdated: s.lastUpdated,
-      }))
-    );
-  }
+/* LANDING — NO AI */
+app.get("/stories", (_, res) => {
+  res.json(
+    Object.values(localStories).map((s) => ({
+      id: s.id,
+      title: s.title,
+      tags: s.tags,
+      sources: s.sourcesCount ?? 0,
+      lastUpdated: s.lastUpdated,
+    }))
+  );
 });
 
+/* STORY VIEW */
 app.get("/stories/:id", async (req, res) => {
-  const { id } = req.params;
-  const localStory = localStories[id];
+  const story = localStories[req.params.id];
+  if (!story) return res.status(404).json({ error: "Not found" });
 
-  if (!localStory) {
-    return res.status(404).json({ error: "Story not found" });
-  }
+  const articles = await fetchArticles(story.title);
+  if (!articles.length) return res.json(story);
 
-  const now = Date.now();
+  const hash = articleHash(articles);
+  const cached = storyCache.get(hash);
 
-  // ✅ Check in-memory cache first
-  const cached = storyCache.get(id);
-  if (cached && now - cached.timestamp < STORY_TTL) {
+  if (cached && Date.now() - cached.timestamp < STORY_TTL) {
     return res.json(cached.data);
   }
 
-  const topic = localStory.title;
+  // heuristic labels
+  articles.forEach((a) => {
+    a.tone = inferTone(a.summary);
+    a.frame = inferFrame(a.summary);
+  });
 
-  // 1) Fetch full articles for this topic
-  let liveArticles = await fetchArticlesForTopic(topic);
-  if (!liveArticles) {
-    // fallback: just return the localStory shape
-    return res.json(localStory);
+  const ai = await aiSynthesize(story.title, articles);
+
+  // AI fallback refinement
+  if (ai?.labels) {
+    const map = new Map(ai.labels.map((l) => [l.id, l]));
+    articles.forEach((a) => {
+      if (map.has(a.id)) {
+        a.tone = map.get(a.id).tone;
+        a.frame = map.get(a.id).frame;
+      }
+    });
   }
-
-  // 2) Add tone/frame labels
-  liveArticles = await annotateSourcesWithToneAndFrame(topic, liveArticles);
-
-  // 3) Generate combined summary + blind spots (with multiple modes)
-  const ai = await generateSummaryAndBlindSpots(topic, liveArticles);
-
-  // Safely normalize combined summary structure
-  let combinedSummaryRaw = ai?.combinedSummary;
-
-  if (combinedSummaryRaw && typeof combinedSummaryRaw === "string") {
-    combinedSummaryRaw = { content: combinedSummaryRaw };
-  }
-
-  const combinedSummary = {
-    content: combinedSummaryRaw?.content || "Not available",
-    eli5: combinedSummaryRaw?.eli5 || null,
-    oneSentence: combinedSummaryRaw?.oneSentence || null,
-    dataOnly: combinedSummaryRaw?.dataOnly || null,
-    politicalAngle: combinedSummaryRaw?.politicalAngle || null,
-    humanitarianAngle: combinedSummaryRaw?.humanitarianAngle || null,
-  };
 
   const result = {
-    ...localStory,
-    sourcesCount: liveArticles.length,
-    sources: liveArticles,
+    ...story,
+    sourcesCount: articles.length,
+    sources: articles,
     lastUpdated: "Just now",
-    combinedSummary,
+    combinedSummary: {
+      content: ai?.summary?.content || "Not available",
+      oneSentence: ai?.summary?.oneSentence || null,
+    },
     blindSpots: {
       items: ai?.blindSpots || [],
     },
   };
 
-  // 💾 Cache the full story for STORY_TTL
-  storyCache.set(id, {
+  storyCache.set(hash, {
     data: result,
-    timestamp: now,
+    timestamp: Date.now(),
   });
 
-  return res.json(result);
+  res.json(result);
 });
+/* -------------------------------------------------------
+   SEARCH STORY — WITH AI SYNTHESIS
+------------------------------------------------------- */
+app.get("/search/story", async (req, res) => {
+  const { q } = req.query;
+
+  if (!q || q.trim().length < 2) {
+    return res.status(400).json({ error: "Query too short" });
+  }
+
+  try {
+    // 1. Fetch articles
+    const articles = await fetchArticles(q);
+
+    if (!articles.length) {
+      return res.status(404).json({ error: "No articles found" });
+    }
+
+    // 2. Hash for caching
+    const hash = articleHash(articles);
+    const cached = storyCache.get(hash);
+
+    if (cached && Date.now() - cached.timestamp < STORY_TTL) {
+      return res.json(cached.data);
+    }
+
+    // 3. Initial heuristic labels (fallback)
+    articles.forEach((a) => {
+      a.tone = inferTone(a.summary);
+      a.frame = inferFrame(a.summary);
+    });
+
+    // 4. AI synthesis (summary + blind spots + per-article labels)
+    const ai = await aiSynthesize(q, articles);
+
+    if (ai?.labels) {
+      const map = new Map(ai.labels.map((l) => [l.id, l]));
+      articles.forEach((a) => {
+        if (map.has(a.id)) {
+          a.tone = map.get(a.id).tone;
+          a.frame = map.get(a.id).frame;
+        }
+      });
+    }
+
+    // 5. Final response (MATCHES StoryView EXPECTATIONS)
+    const result = {
+      id: `search:${q}`,
+      title: q,
+      tags: ["Search"],
+      sourcesCount: articles.length,
+      sources: articles,
+      lastUpdated: "Live",
+      combinedSummary: {
+        content:
+          ai?.summary?.content ||
+          "This topic was generated from a live search across multiple news outlets.",
+        oneSentence: ai?.summary?.oneSentence || null,
+      },
+      blindSpots: {
+        items: ai?.blindSpots || [],
+      },
+    };
+
+    // 6. Cache it
+    storyCache.set(hash, {
+      data: result,
+      timestamp: Date.now(),
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Search story AI error:", err.message);
+    res.status(500).json({ error: "Search story failed" });
+  }
+});
+
 
 
 /* -------------------------------------------------------
    START SERVER
-   ------------------------------------------------------- */
+------------------------------------------------------- */
 app.listen(PORT, () => {
   console.log(`Skeptique backend running at http://localhost:${PORT}`);
 });

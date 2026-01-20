@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
+
+
 // dark mode background
 const DarkLensFlare = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -16,6 +18,7 @@ const DarkLensFlare = () => (
     />
   </div>
 )
+
 
 const DarkApertureCard = ({ children, delay = 0 }) => (
   <motion.div
@@ -57,6 +60,9 @@ const Landing = ({ darkMode, setDarkMode }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [focus, setFocus] = useState(1)
+  const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
 
   // fetch topics ONCE (no refetch when toggling dark mode)
   useEffect(() => {
@@ -107,6 +113,13 @@ const Landing = ({ darkMode, setDarkMode }) => {
     const blurAmount = Math.max(0, baseBlur - focus * 2)
     return `blur(${blurAmount}px)`
   }
+  const handleSearch = (e) => {
+      e.preventDefault()
+      if (!query.trim()) return
+
+      navigate(`/stories/search:${encodeURIComponent(query)}`)
+    }
+
 
   // ---------- DARK MODE ----------
   if (darkMode) {
@@ -217,6 +230,29 @@ const Landing = ({ darkMode, setDarkMode }) => {
               ))}
             </motion.div>
           </motion.section>
+          <form
+            onSubmit={handleSearch}
+            className="max-w-xl mx-auto mt-10 relative"
+          >
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search any topic… (e.g. AI regulation, Gaza, vaccines)"
+              className="w-full px-6 py-4 rounded-full bg-black/60 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-lg"
+            />
+            <button
+              type="submit"
+              disabled={searching}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white text-sm transition disabled:opacity-50"
+            >
+              {searching ? '…' : 'Search'}
+            </button>
+
+            {searchError && (
+              <p className="text-red-400 text-sm mt-2">{searchError}</p>
+            )}
+          </form>
+
 
           {/* topics */}
           <section className="max-w-6xl mx-auto px-6">
@@ -458,6 +494,29 @@ const Landing = ({ darkMode, setDarkMode }) => {
             </p>
           </div>
         </motion.section>
+        <form
+          onSubmit={handleSearch}
+          className="max-w-xl mx-auto mt-10 relative"
+        >
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search any topic…"
+            className="w-full px-6 py-4 rounded-full border-2 border-amber-300 focus:border-amber-500 focus:outline-none text-gray-900 placeholder-gray-400 shadow-md"
+          />
+          <button
+            type="submit"
+            disabled={searching}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-black transition disabled:opacity-50"
+          >
+            {searching ? '…' : 'Search'}
+          </button>
+
+          {searchError && (
+            <p className="text-red-500 text-sm mt-2">{searchError}</p>
+          )}
+        </form>
+
 
         {/* topics */}
         <section className="py-16">

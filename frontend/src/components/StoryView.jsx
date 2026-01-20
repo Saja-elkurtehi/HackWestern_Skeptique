@@ -328,24 +328,32 @@ const StoryView = ({ darkMode, setDarkMode }) => {
       return
     }
 
-    const fetchStory = async () => {
-      setLoading(true)
-      setError(null)
+   const fetchStory = async () => {
+      setLoading(true);
+      setError(null);
 
       try {
-        const res = await fetch(`http://localhost:3000/stories/${id}`)
-        if (!res.ok) throw new Error('Failed to load story')
-        const data = await res.json()
+        const isSearch = id.startsWith("search:");
+        const endpoint = isSearch
+          ? `http://localhost:3000/search/story?q=${encodeURIComponent(
+              id.replace("search:", "")
+            )}`
+          : `http://localhost:3000/stories/${id}`;
 
-        storyCache.set(id, data)
-        setStory(data)
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Failed to load story");
+
+        const data = await res.json();
+        storyCache.set(id, data);
+        setStory(data);
       } catch (err) {
-        console.error(err)
-        setError('Could not load this story right now.')
+        console.error(err);
+        setError("Could not load this story right now.");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
+
 
     fetchStory()
   }, [id])
