@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-
+import API_BASE_URL from '../config'
 // simple in-memory cache so we don't refetch the same story all the time
 const storyCache = new Map()
 
@@ -335,10 +335,10 @@ const StoryView = ({ darkMode, setDarkMode }) => {
       try {
         const isSearch = id.startsWith("search:");
         const endpoint = isSearch
-          ? `http://localhost:3000/search/story?q=${encodeURIComponent(
+          ? `${API_BASE_URL}/search/story?q=${encodeURIComponent(
               id.replace("search:", "")
             )}`
-          : `http://localhost:3000/stories/${id}`;
+          : `${API_BASE_URL}/stories/${id}`;
 
         const res = await fetch(endpoint);
         if (!res.ok) throw new Error("Failed to load story");

@@ -12,7 +12,12 @@ const PORT = 3000;
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://saja-elkurtehi.github.io',
+  ]
+}));
 app.use(express.json());
 
 const localStories = require("./data/stories.json");

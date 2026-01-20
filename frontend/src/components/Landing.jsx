@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-
+import API_BASE_URL from '../config'
 
 
 // dark mode background
@@ -68,7 +68,7 @@ const Landing = ({ darkMode, setDarkMode }) => {
   useEffect(() => {
     const fetchTopics = async () => {
       try {
-        const res = await fetch('http://localhost:3000/stories')
+        const res = await fetch(`${API_BASE_URL}/stories`)
         if (!res.ok) throw new Error('Failed to load topics')
         const data = await res.json()
         setTopics(data)
